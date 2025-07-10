@@ -1,7 +1,7 @@
 "use client";
 
 import { getDefaultConfig } from "@rainbow-me/rainbowkit";
-import { anvil, zksync, mainnet } from "wagmi/chains";
+import { anvil, mainnet, zksync } from "wagmi/chains";
 
 export default getDefaultConfig({
   appName: "TSender",

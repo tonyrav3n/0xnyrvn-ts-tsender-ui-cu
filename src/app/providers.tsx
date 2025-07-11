@@ -8,11 +8,23 @@ import { useState, type ReactNode } from "react";
 import { WagmiProvider } from "wagmi";
 
 export function Providers(props: { children: ReactNode }) {
-  const [queryClient] = useState(() => new QueryClient());
+  const [queryClient] = useState(
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          queries: {
+            refetchOnWindowFocus: false,
+          },
+        },
+      })
+  );
+
   return (
-    <WagmiProvider config={config}>
+    <WagmiProvider config={config} reconnectOnMount={true}>
       <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider>{props.children}</RainbowKitProvider>
+        <RainbowKitProvider showRecentTransactions={true}>
+          {props.children}
+        </RainbowKitProvider>
       </QueryClientProvider>
     </WagmiProvider>
   );

@@ -3,25 +3,100 @@ import InputField from "@/components/ui/InputField";
 import { chainsToTSender, erc20Abi, tsenderAbi } from "@/constants";
 import { calculateTotal } from "@/utils";
 import { readContract, waitForTransactionReceipt } from "@wagmi/core";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAccount, useChainId, useConfig, useWriteContract } from "wagmi";
 
 export default function AirdropForm() {
   const [tokenAddress, setTokenAddress] = useState("");
   const [recipients, setRecipients] = useState("");
   const [amounts, setAmounts] = useState("");
+  const [tokenName, setTokenName] = useState("");
+  const [tokenSymbol, setTokenSymbol] = useState("");
+  const [tokenDecimals, setTokenDecimals] = useState(18);
   const chainId = useChainId();
   const config = useConfig();
   const account = useAccount();
   const total: number = useMemo(() => calculateTotal(amounts), [amounts]);
   const { data: hash, isPending, writeContractAsync } = useWriteContract();
 
+  // Load saved values from localStorage on component mount
+  useEffect(() => {
+    const savedTokenAddress = localStorage.getItem("airdrop-token-address");
+    const savedRecipients = localStorage.getItem("airdrop-recipients");
+    const savedAmounts = localStorage.getItem("airdrop-amounts");
+
+    if (savedTokenAddress) setTokenAddress(savedTokenAddress);
+    if (savedRecipients) setRecipients(savedRecipients);
+    if (savedAmounts) setAmounts(savedAmounts);
+  }, []);
+
+  // Save values to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem("airdrop-token-address", tokenAddress);
+  }, [tokenAddress]);
+
+  useEffect(() => {
+    localStorage.setItem("airdrop-recipients", recipients);
+  }, [recipients]);
+
+  useEffect(() => {
+    localStorage.setItem("airdrop-amounts", amounts);
+  }, [amounts]);
+
+  // Function to fetch token details
+  async function fetchTokenDetails(address: string) {
+    if (!address.trim()) return;
+
+    try {
+      const cleanAddress = address.trim() as `0x${string}`;
+
+      const [name, symbol, decimals] = await Promise.all([
+        readContract(config, {
+          abi: erc20Abi,
+          address: cleanAddress,
+          functionName: "name",
+        }),
+        readContract(config, {
+          abi: erc20Abi,
+          address: cleanAddress,
+          functionName: "symbol",
+        }),
+        readContract(config, {
+          abi: erc20Abi,
+          address: cleanAddress,
+          functionName: "decimals",
+        }),
+      ]);
+
+      setTokenName(name as string);
+      setTokenSymbol(symbol as string);
+      setTokenDecimals(decimals as number);
+    } catch (error) {
+      console.error("Error fetching token details:", error);
+      setTokenName("");
+      setTokenSymbol("");
+      setTokenDecimals(18);
+    }
+  }
+
+  // Fetch token details when token address changes
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (tokenAddress.trim().length === 42) {
+        // Valid Ethereum address length
+        fetchTokenDetails(tokenAddress);
+      }
+    }, 500); // Debounce for 500ms
+
+    return () => clearTimeout(timeoutId);
+  }, [tokenAddress]);
+
   async function getApprovedAmount(
     tSenderAddress: string | null
-  ): Promise<number> {
+  ): Promise<bigint> {
     if (!tSenderAddress) {
       alert("No address found. Please use a supported chain!");
-      return 0;
+      return BigInt(0);
     }
 
     // Trim whitespace from token address
@@ -29,7 +104,7 @@ export default function AirdropForm() {
 
     if (!cleanTokenAddress) {
       alert("Please enter a valid token address!");
-      return 0;
+      return BigInt(0);
     }
 
     try {
@@ -40,64 +115,66 @@ export default function AirdropForm() {
         args: [account.address, tSenderAddress.trim() as `0x${string}`],
       });
 
-      return response as number;
+      return response as bigint;
     } catch (error) {
       console.error("Error reading contract:", error);
       alert("Error reading token allowance. Please check the token address.");
-      return 0;
+      return BigInt(0);
     }
   }
 
   async function handleSubmit() {
-    // Validate inputs
-    if (!tokenAddress.trim()) {
-      alert("Please enter a token address!");
-      return;
-    }
+    try {
+      // Validate inputs
+      if (!tokenAddress.trim()) {
+        alert("Please enter a token address!");
+        return;
+      }
 
-    if (!recipients.trim()) {
-      alert("Please enter recipient addresses!");
-      return;
-    }
+      if (!recipients.trim()) {
+        alert("Please enter recipient addresses!");
+        return;
+      }
 
-    if (!amounts.trim()) {
-      alert("Please enter amounts!");
-      return;
-    }
+      if (!amounts.trim()) {
+        alert("Please enter amounts!");
+        return;
+      }
 
-    if (!account.address) {
-      alert("Please connect your wallet!");
-      return;
-    }
+      if (!account.address) {
+        alert("Please connect your wallet!");
+        return;
+      }
 
-    const tSenderAddress = chainsToTSender[chainId]?.["tsender"];
+      const tSenderAddress = chainsToTSender[chainId]?.["tsender"];
 
-    if (!tSenderAddress) {
-      alert("TSender not supported on this chain!");
-      return;
-    }
+      if (!tSenderAddress) {
+        alert("TSender not supported on this chain!");
+        return;
+      }
 
-    const approvedAmount = await getApprovedAmount(tSenderAddress);
+      const approvedAmount = await getApprovedAmount(tSenderAddress);
 
-    if (approvedAmount < total) {
-      const approvalHash = await writeContractAsync({
-        abi: erc20Abi,
-        address: tokenAddress.trim() as `0x${string}`,
-        functionName: "approve",
-        args: [tSenderAddress.trim() as `0x${string}`, BigInt(total)],
-      });
-      const approvalReceipt = await waitForTransactionReceipt(config, {
-        hash: approvalHash,
-      });
-      console.log("Approval confirmed!", approvalReceipt);
-    } else {
-      await writeContractAsync({
+      // Step 1: Approve if needed
+      if (approvedAmount < BigInt(total)) {
+        const approvalHash = await writeContractAsync({
+          abi: erc20Abi,
+          address: tokenAddress.trim() as `0x${string}`,
+          functionName: "approve",
+          args: [tSenderAddress.trim() as `0x${string}`, BigInt(total)],
+        });
+        await waitForTransactionReceipt(config, {
+          hash: approvalHash,
+        });
+      }
+
+      // Step 2: Execute the airdrop
+      const airdropHash = await writeContractAsync({
         abi: tsenderAbi,
         address: tSenderAddress.trim() as `0x${string}`,
         functionName: "airdropERC20",
         args: [
           tokenAddress.trim() as `0x${string}`,
-          // Comma or new line separated
           recipients
             .split(/[,\n]+/)
             .map((addr) => addr.trim())
@@ -109,16 +186,27 @@ export default function AirdropForm() {
           BigInt(total),
         ],
       });
+
+      await waitForTransactionReceipt(config, {
+        hash: airdropHash,
+      });
+
+      alert("Airdrop completed successfully!");
+    } catch (error) {
+      console.error("Error in handleSubmit:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      alert(`Transaction failed: ${errorMessage}`);
     }
   }
 
   return (
-    <div className="max-w-2xl mx-auto p-6 bg-white rounded-xl shadow-lg border border-gray-200">
-      <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">
+    <div className="max-w-2xl mx-auto p-8 bg-white rounded-2xl shadow-2xl border border-gray-200">
+      <h2 className="text-3xl font-extrabold text-gray-900 mb-8 text-center drop-shadow-sm tracking-tight">
         Token Airdrop
       </h2>
 
-      <div className="space-y-6">
+      <div className="space-y-7">
         <InputField
           label="Token Address"
           placeholder="0x..."
@@ -141,24 +229,78 @@ export default function AirdropForm() {
           onChange={(e) => setAmounts(e.target.value)}
           large
         />
-        {/*
-        TODO:
-        - Create a section before the `send token` button for transaction details with the following details:
-          - Token Name
-          - Amount in wei
-          - Amount in tokens
-        - Make the form (inputs and buttons) much finer:
-          - The button should have a spinner while a transaction is in progress
-            or while MetaMask is popped up
-          - The inputs should be saved to local storage so when user refreshes
-            the page, they do not lose them
-        */}
+
+        {/* Transaction Details Section */}
+        {tokenName && total > 0 && (
+          <div className="bg-gray-50 p-5 rounded-xl border border-gray-200 shadow-md">
+            <h3 className="text-lg font-bold text-gray-900 mb-3">
+              Transaction Details
+            </h3>
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span className="text-gray-600">Token Name:</span>
+                <span className="font-medium text-gray-800">
+                  {tokenName} ({tokenSymbol})
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Total Amount (Wei):</span>
+                <span className="font-mono text-sm text-gray-800">
+                  {total.toLocaleString()}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Total Amount (Tokens):</span>
+                <span className="font-medium text-gray-800">
+                  {(total / Math.pow(10, tokenDecimals)).toLocaleString()}{" "}
+                  {tokenSymbol}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Recipients:</span>
+                <span className="font-medium text-gray-800">
+                  {
+                    recipients.split(/[,\n]+/).filter((addr) => addr.trim())
+                      .length
+                  }
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
 
         <button
           onClick={handleSubmit}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-md hover:shadow-lg mt-6"
+          disabled={isPending}
+          className="w-full bg-gray-900 hover:bg-gray-800 disabled:bg-gray-400 disabled:cursor-not-allowed cursor-pointer text-white font-bold py-3 px-6 rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-700 focus:ring-offset-2 shadow-lg hover:shadow-xl mt-8 flex items-center justify-center text-lg tracking-wide"
         >
-          Send Token
+          {isPending ? (
+            <>
+              <svg
+                className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                ></circle>
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
+              </svg>
+              Processing...
+            </>
+          ) : (
+            "Send Token"
+          )}
         </button>
       </div>
     </div>

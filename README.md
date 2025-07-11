@@ -1,36 +1,75 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# TSender UI (Airdrop Web3 App)
 
-## Getting Started
+A beautiful, modern, and secure Web3 airdrop interface for sending ERC20 tokens to multiple recipients in a single transaction. Built with Next.js, React, TypeScript, RainbowKit, Wagmi, and MetaMask support.
 
-First, run the development server:
+## Features
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- **Multi-recipient ERC20 airdrop**: Send tokens to many addresses at once.
+- **MetaMask & WalletConnect**: Connect your wallet securely with RainbowKit.
+- **ERC20 Approval Handling**: Automatic approval flow for safe airdrops.
+- **Transaction Details**: See token info, total amount, and recipient count before sending.
+- **Input Validation**: Prevents mistakes and guides the user.
+- **LocalStorage Persistence**: Form data is saved between reloads.
+- **Responsive & Modern UI**: Clean, black & white design with smooth UX.
+- **Error Handling**: Friendly alerts and feedback for all actions.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Tech Stack
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- [Next.js](https://nextjs.org/)
+- [React](https://react.dev/)
+- [TypeScript](https://www.typescriptlang.org/)
+- [RainbowKit](https://www.rainbowkit.com/) & [Wagmi](https://wagmi.sh/) (wallet connection)
+- [Tailwind CSS](https://tailwindcss.com/) (utility-first styling)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Usage
 
-## Learn More
+1. **Install dependencies**
 
-To learn more about Next.js, take a look at the following resources:
+   ```bash
+   pnpm install
+   # or
+   npm install
+   # or
+   yarn install
+   ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+2. **Run the development server**
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+   ```bash
+   pnpm dev
+   # or
+   npm run dev
+   # or
+   yarn dev
+   ```
 
-## Deploy on Vercel
+3. **Open your browser**
+   Visit [http://localhost:3000](http://localhost:3000) to use the app.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## How It Works
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Connect your wallet** (MetaMask, WalletConnect, etc.)
+- **Enter the ERC20 token address**
+- **Paste recipient addresses** (comma or newline separated)
+- **Enter amounts** (comma or newline separated, matching recipient count)
+- **Review transaction details**
+- **Click "Send Token"**
+- The app will handle approval and airdrop in one flow, with clear feedback and error handling.
+
+## Customization
+
+- Edit `src/constants.ts` to add supported chains or update ABIs.
+- UI components are in `src/components/` and are easy to style with Tailwind.
+
+## Security
+
+- All transactions are signed by your wallet; private keys are never exposed.
+- Input validation and error handling help prevent mistakes.
+
+## License
+
+MIT
+
+---
+
+*Built with ❤️ by 0xnyrvn.*

@@ -19,11 +19,14 @@
     "next": "15.3.5",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-hot-toast": "^2.5.2",
     "react-icons": "^5.5.0",
     "viem": "~2.31.7",
     "wagmi": "^2.15.6"
   },
   "devDependencies": {
+    "@playwright/test": "^1.54.1",
+    "@synthetixio/synpress": "^4.1.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

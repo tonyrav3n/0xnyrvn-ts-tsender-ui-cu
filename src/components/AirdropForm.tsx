@@ -1,29 +1,31 @@
-"use client";
-import InputField from "@/components/ui/InputField";
-import { chainsToTSender, erc20Abi, tsenderAbi } from "@/constants";
-import { calculateTotal } from "@/utils";
-import { readContract, waitForTransactionReceipt } from "@wagmi/core";
-import { useEffect, useMemo, useState } from "react";
-import { useAccount, useChainId, useConfig, useWriteContract } from "wagmi";
+'use client';
+import InputField from '@/components/ui/InputField';
+import {chainsToTSender, erc20Abi, tsenderAbi} from '@/constants';
+import {calculateTotal} from '@/utils';
+import {readContract, waitForTransactionReceipt} from '@wagmi/core';
+import {useEffect, useMemo, useState} from 'react';
+import {useAccount, useChainId, useConfig, useWriteContract} from 'wagmi';
+import toast from 'react-hot-toast';
 
 export default function AirdropForm() {
-  const [tokenAddress, setTokenAddress] = useState("");
-  const [recipients, setRecipients] = useState("");
-  const [amounts, setAmounts] = useState("");
-  const [tokenName, setTokenName] = useState("");
-  const [tokenSymbol, setTokenSymbol] = useState("");
+  const [tokenAddress, setTokenAddress] = useState('');
+  const [recipients, setRecipients] = useState('');
+  const [amounts, setAmounts] = useState('');
+  const [tokenName, setTokenName] = useState('');
+  const [tokenSymbol, setTokenSymbol] = useState('');
   const [tokenDecimals, setTokenDecimals] = useState(18);
   const chainId = useChainId();
   const config = useConfig();
   const account = useAccount();
   const total: number = useMemo(() => calculateTotal(amounts), [amounts]);
-  const { data: hash, isPending, writeContractAsync } = useWriteContract();
+  const {data: hash, isPending, writeContractAsync} = useWriteContract();
+  const [showConnectWarning, setShowConnectWarning] = useState(false);
 
   // Load saved values from localStorage on component mount
   useEffect(() => {
-    const savedTokenAddress = localStorage.getItem("airdrop-token-address");
-    const savedRecipients = localStorage.getItem("airdrop-recipients");
-    const savedAmounts = localStorage.getItem("airdrop-amounts");
+    const savedTokenAddress = localStorage.getItem('airdrop-token-address');
+    const savedRecipients = localStorage.getItem('airdrop-recipients');
+    const savedAmounts = localStorage.getItem('airdrop-amounts');
 
     if (savedTokenAddress) setTokenAddress(savedTokenAddress);
     if (savedRecipients) setRecipients(savedRecipients);
@@ -32,15 +34,15 @@ export default function AirdropForm() {
 
   // Save values to localStorage whenever they change
   useEffect(() => {
-    localStorage.setItem("airdrop-token-address", tokenAddress);
+    localStorage.setItem('airdrop-token-address', tokenAddress);
   }, [tokenAddress]);
 
   useEffect(() => {
-    localStorage.setItem("airdrop-recipients", recipients);
+    localStorage.setItem('airdrop-recipients', recipients);
   }, [recipients]);
 
   useEffect(() => {
-    localStorage.setItem("airdrop-amounts", amounts);
+    localStorage.setItem('airdrop-amounts', amounts);
   }, [amounts]);
 
   // Function to fetch token details
@@ -54,17 +56,17 @@ export default function AirdropForm() {
         readContract(config, {
           abi: erc20Abi,
           address: cleanAddress,
-          functionName: "name",
+          functionName: 'name',
         }),
         readContract(config, {
           abi: erc20Abi,
           address: cleanAddress,
-          functionName: "symbol",
+          functionName: 'symbol',
         }),
         readContract(config, {
           abi: erc20Abi,
           address: cleanAddress,
-          functionName: "decimals",
+          functionName: 'decimals',
         }),
       ]);
 
@@ -72,9 +74,9 @@ export default function AirdropForm() {
       setTokenSymbol(symbol as string);
       setTokenDecimals(decimals as number);
     } catch (error) {
-      console.error("Error fetching token details:", error);
-      setTokenName("");
-      setTokenSymbol("");
+      console.error('Error fetching token details:', error);
+      setTokenName('');
+      setTokenSymbol('');
       setTokenDecimals(18);
     }
   }
@@ -84,7 +86,7 @@ export default function AirdropForm() {
     const timeoutId = setTimeout(() => {
       if (tokenAddress.trim().length === 42) {
         // Valid Ethereum address length
-        fetchTokenDetails(tokenAddress);
+        void fetchTokenDetails(tokenAddress);
       }
     }, 500); // Debounce for 500ms
 
@@ -92,10 +94,10 @@ export default function AirdropForm() {
   }, [tokenAddress]);
 
   async function getApprovedAmount(
-    tSenderAddress: string | null
+      tSenderAddress: string | null,
   ): Promise<bigint> {
     if (!tSenderAddress) {
-      alert("No address found. Please use a supported chain!");
+      toast.error('No address found. Please use a supported chain!');
       return BigInt(0);
     }
 
@@ -103,7 +105,7 @@ export default function AirdropForm() {
     const cleanTokenAddress = tokenAddress.trim();
 
     if (!cleanTokenAddress) {
-      alert("Please enter a valid token address!");
+      toast.error('Please enter a valid token address!');
       return BigInt(0);
     }
 
@@ -111,14 +113,15 @@ export default function AirdropForm() {
       const response = await readContract(config, {
         abi: erc20Abi,
         address: cleanTokenAddress as `0x${string}`,
-        functionName: "allowance",
+        functionName: 'allowance',
         args: [account.address, tSenderAddress.trim() as `0x${string}`],
       });
 
       return response as bigint;
     } catch (error) {
-      console.error("Error reading contract:", error);
-      alert("Error reading token allowance. Please check the token address.");
+      console.error('Error reading contract:', error);
+      toast.error(
+          'Error reading token allowance. Please check the token address.');
       return BigInt(0);
     }
   }
@@ -127,29 +130,29 @@ export default function AirdropForm() {
     try {
       // Validate inputs
       if (!tokenAddress.trim()) {
-        alert("Please enter a token address!");
+        toast.error('Please enter a token address!');
         return;
       }
 
       if (!recipients.trim()) {
-        alert("Please enter recipient addresses!");
+        toast.error('Please enter recipient addresses!');
         return;
       }
 
       if (!amounts.trim()) {
-        alert("Please enter amounts!");
+        toast.error('Please enter amounts!');
         return;
       }
 
       if (!account.address) {
-        alert("Please connect your wallet!");
+        setShowConnectWarning(true);
         return;
       }
 
-      const tSenderAddress = chainsToTSender[chainId]?.["tsender"];
+      const tSenderAddress = chainsToTSender[chainId]?.['tsender'];
 
       if (!tSenderAddress) {
-        alert("TSender not supported on this chain!");
+        toast.error('TSender not supported on this chain!');
         return;
       }
 
@@ -160,7 +163,7 @@ export default function AirdropForm() {
         const approvalHash = await writeContractAsync({
           abi: erc20Abi,
           address: tokenAddress.trim() as `0x${string}`,
-          functionName: "approve",
+          functionName: 'approve',
           args: [tSenderAddress.trim() as `0x${string}`, BigInt(total)],
         });
         await waitForTransactionReceipt(config, {
@@ -172,17 +175,15 @@ export default function AirdropForm() {
       const airdropHash = await writeContractAsync({
         abi: tsenderAbi,
         address: tSenderAddress.trim() as `0x${string}`,
-        functionName: "airdropERC20",
+        functionName: 'airdropERC20',
         args: [
           tokenAddress.trim() as `0x${string}`,
-          recipients
-            .split(/[,\n]+/)
-            .map((addr) => addr.trim())
-            .filter((addr) => addr !== ""),
-          amounts
-            .split(/[,\n]+/)
-            .map((amt) => BigInt(amt.trim()))
-            .filter((amt) => amt > BigInt(0)),
+          recipients.split(/[,\n]+/).
+              map((addr) => addr.trim()).
+              filter((addr) => addr !== ''),
+          amounts.split(/[,\n]+/).
+              map((amt) => BigInt(amt.trim())).
+              filter((amt) => amt > BigInt(0)),
           BigInt(total),
         ],
       });
@@ -191,118 +192,136 @@ export default function AirdropForm() {
         hash: airdropHash,
       });
 
-      alert("Airdrop completed successfully!");
+      toast.success('Airdrop completed successfully!');
     } catch (error) {
-      console.error("Error in handleSubmit:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      alert(`Transaction failed: ${errorMessage}`);
+      console.error('Error in handleSubmit:', error);
+      toast.error('Transaction failed. Please try again.');
     }
   }
 
+  const Spinner = () => (
+      <svg
+          className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+      >
+        <circle
+            className="opacity-25"
+            cx="12"
+            cy="12"
+            r="10"
+            stroke="currentColor"
+            strokeWidth="4"
+        ></circle>
+        <path
+            className="opacity-75"
+            fill="currentColor"
+            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+        ></path>
+      </svg>
+  );
+
+  useEffect(() => {
+    if (account.address && showConnectWarning) {
+      setShowConnectWarning(false);
+    }
+  }, [account.address, showConnectWarning]);
+
   return (
-    <div className="max-w-2xl mx-auto p-8 bg-white rounded-2xl shadow-2xl border border-gray-200">
-      <h2 className="text-3xl font-extrabold text-gray-900 mb-8 text-center drop-shadow-sm tracking-tight">
-        Token Airdrop
-      </h2>
+      <div
+          className="max-w-2xl mx-auto p-8 bg-white rounded-2xl shadow-2xl border border-gray-200">
 
-      <div className="space-y-7">
-        <InputField
-          label="Token Address"
-          placeholder="0x..."
-          value={tokenAddress}
-          onChange={(e) => setTokenAddress(e.target.value)}
-        />
+        <div className="space-y-7">
+          <InputField
+              label="Token Address"
+              placeholder="0x..."
+              value={tokenAddress}
+              onChange={(e) => setTokenAddress(e.target.value)}
+          />
 
-        <InputField
-          label="Recipients (comma or new line separated)"
-          placeholder="0x123..., 0x456...,"
-          value={recipients}
-          onChange={(e) => setRecipients(e.target.value)}
-          large
-        />
+          <InputField
+              label={<span>Recipients <span
+                  className="text-gray-400 text-sm font-normal">(comma or new line separated)</span></span>}
+              placeholder="0x123..., 0x456...,"
+              value={recipients}
+              onChange={(e) => setRecipients(e.target.value)}
+              large
+          />
 
-        <InputField
-          label="Amounts"
-          placeholder="100, 200, 300, ..."
-          value={amounts}
-          onChange={(e) => setAmounts(e.target.value)}
-          large
-        />
+          <InputField
+              label="Amounts"
+              placeholder="100, 200, 300, ..."
+              value={amounts}
+              onChange={(e) => setAmounts(e.target.value)}
+              large
+          />
 
-        {/* Transaction Details Section */}
-        {tokenName && total > 0 && (
-          <div className="bg-gray-50 p-5 rounded-xl border border-gray-200 shadow-md">
-            <h3 className="text-lg font-bold text-gray-900 mb-3">
-              Transaction Details
-            </h3>
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span className="text-gray-600">Token Name:</span>
-                <span className="font-medium text-gray-800">
+          {/* Transaction Details Section */}
+          {tokenName && total > 0 && (
+              <div
+                  className="bg-gray-50 p-5 rounded-xl border border-gray-200 shadow-md">
+                <h3 className="text-lg font-bold text-gray-900 mb-3">
+                  Transaction Details
+                </h3>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Token Name:</span>
+                    <span className="font-medium text-gray-800">
                   {tokenName} ({tokenSymbol})
                 </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Total Amount (Wei):</span>
-                <span className="font-mono text-sm text-gray-800">
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Total Amount (Wei):</span>
+                    <span className="font-mono text-sm text-gray-800">
                   {total.toLocaleString()}
                 </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Total Amount (Tokens):</span>
-                <span className="font-medium text-gray-800">
-                  {(total / Math.pow(10, tokenDecimals)).toLocaleString()}{" "}
-                  {tokenSymbol}
+                  </div>
+                  <div className="flex justify-between">
+                    <span
+                        className="text-gray-600">Total Amount (Tokens):</span>
+                    <span className="font-medium text-gray-800">
+                  {(total / Math.pow(10, tokenDecimals)).toLocaleString()}{' '}
+                      {tokenSymbol}
                 </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Recipients:</span>
-                <span className="font-medium text-gray-800">
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Recipients:</span>
+                    <span className="font-medium text-gray-800">
                   {
-                    recipients.split(/[,\n]+/).filter((addr) => addr.trim())
-                      .length
+                    recipients.split(/[,\n]+/).
+                        filter((addr) => addr.trim()).length
                   }
                 </span>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-        )}
-
-        <button
-          onClick={handleSubmit}
-          disabled={isPending}
-          className="w-full bg-gray-900 hover:bg-gray-800 disabled:bg-gray-400 disabled:cursor-not-allowed cursor-pointer text-white font-bold py-3 px-6 rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-700 focus:ring-offset-2 shadow-lg hover:shadow-xl mt-8 flex items-center justify-center text-lg tracking-wide"
-        >
-          {isPending ? (
-            <>
-              <svg
-                className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                ></circle>
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                ></path>
-              </svg>
-              Processing...
-            </>
-          ) : (
-            "Send Token"
           )}
-        </button>
+
+          <button
+              onClick={() => {
+                setShowConnectWarning(false); // Remove warning if user tries again
+                void handleSubmit();
+              }}
+              disabled={isPending}
+              className={`w-full font-bold py-3 px-6 rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 shadow-lg hover:shadow-xl mt-8 flex items-center justify-center text-lg tracking-wide
+            ${showConnectWarning
+                  ? 'bg-yellow-500 hover:bg-yellow-400 text-gray-900 focus:ring-yellow-600 focus:ring-offset-yellow-100'
+                  : 'bg-gray-900 hover:bg-gray-800 text-white focus:ring-gray-700 focus:ring-offset-2 disabled:bg-gray-400 disabled:cursor-not-allowed cursor-pointer'}
+          `}
+          >
+            {isPending ? (
+                <>
+                  <Spinner/>
+                  Processing...
+                </>
+            ) : (
+                showConnectWarning
+                    ? 'Please connect to wallet first'
+                    : 'Send Token'
+            )}
+          </button>
+        </div>
       </div>
-    </div>
   );
 }

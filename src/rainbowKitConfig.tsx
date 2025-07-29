@@ -1,11 +1,13 @@
 'use client'
 
-import { getDefaultConfig } from '@rainbow-me/rainbowkit'
-import { anvil, mainnet, zksync } from 'wagmi/chains'
+import { getDefaultConfig } from '@rainbow-me/rainbowkit';
+import { anvil, mainnet, sepolia } from 'wagmi/chains';
+
+const isDevelopment = process.env.NODE_ENV === 'development';
 
 export default getDefaultConfig({
   appName: 'TSender',
   projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID!,
-  chains: [anvil, zksync, mainnet],
+  chains: isDevelopment ? [anvil] : [mainnet, sepolia],
   ssr: false,
-})
+});

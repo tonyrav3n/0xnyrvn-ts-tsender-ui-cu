@@ -1,6 +1,10 @@
 'use client';
 
-import AirdropForm from '@/components/AirdropForm';
+import dynamic from 'next/dynamic';
+
+const AirdropForm = dynamic(() => import('@/components/AirdropForm'), {
+  ssr: false,
+});
 
 export default function Home() {
   return (
